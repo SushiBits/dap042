@@ -1,0 +1,21 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Cortex Debug (J-Link)",
+            "type": "cortex-debug",
+            "request": "launch",
+            "servertype": "jlink",
+            "executable": "${workspaceFolder}/dap042.elf",
+            "device": "STM32F042F6",
+            "interface": "swd",
+            "svdFile": "${workspaceFolder}/contrib/platform/share/STM32L0x1.svd",
+            "ipAddress": "jlink.maxchan.xyz",
+            "runToEntryPoint": "main",
+            "preLaunchTask": "Build",
+            "serverpath": "C:\\Program Files\\SEGGER\\Jlink\\JLinkGDBServerCL.exe",
+            "serverArgs": ["-reset_type", "2"],
+            //"preLaunchCommands": ["monitor flash erase"]
+        }
+    ]
+}

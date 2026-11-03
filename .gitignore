@@ -109,4 +109,4 @@ fp-info-cache
 *.kicad_prl
 
 # Auto-generated platform headers and handlers
-platform/include/stm32f0??x?_handlers.h
+contrib/platform/include/stm32f0??x?_handlers.h
