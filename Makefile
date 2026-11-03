@@ -24,11 +24,11 @@ OBJS := $(foreach SRC,$(SRCS),$(SRC).o)
 DEPS := $(OBJS:.o=.d)
 
 CPUFLAGS := -mcpu=cortex-m0 -mthumb
-CPPFLAGS := -Iinclude -Iplatform/include -Icmsis/include -DSTM32F042x6 -DHSE_VALUE=12000000
+CPPFLAGS := -Iinclude -Icontrib/platform/include -Icontrib/libusb_stm32/inc -Icontrib/cmsis/CMSIS/Core/Include -DSTM32F042x6 -DHSE_VALUE=12000000
 CFLAGS := $(CPUFLAGS) -std=gnu17 -MMD -MP -Og -g -ffunction-sections -fdata-sections -Wall
 CXXFLAGS := $(CPUFLAGS) -std=gnu++17 -MMD -MP -Og -g -ffunction-sections -fdata-sections -Wall
 ASFLAGS := $(CPUFLAGS) -MMD -MP -g -ffunction-sections -fdata-sections -Wall
-LDFLAGS := $(CPUFLAGS) -Llib -Lplatform/lib -Wl,-Tdap042.ld -Wl,--gc-sections # Platform code include a linker script fragment.
+LDFLAGS := $(CPUFLAGS) -Llib -Lcontrib/platform/lib -Wl,-Tdap042.ld -Wl,--gc-sections # Platform code include a linker script fragment.
 
 all: headers $(TARGET)
 hex: $(TARGET_HEX)

@@ -1,6 +1,8 @@
 [submodule "contrib/cmsis"]
 	path = contrib/cmsis
 	url = git@github.com:ARM-software/CMSIS_6.git
+	ignore = all
 [submodule "contrib/libusb_stm32"]
 	path = contrib/libusb_stm32
 	url = git@github.com:dmitrystu/libusb_stm32.git
+	ignore = all
