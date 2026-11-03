@@ -1,4 +1,11 @@
 {
     "cortex-debug.variableUseNaturalFormat": true,
-    "git.ignoreSubmodules": true
+    "git.ignoreSubmodules": true,
+    "makefile.launchConfigurations": [
+        {
+            "cwd": "${workspaceFolder}",
+            "binaryPath": "${workspaceFolder}/dap042.elf",
+            "binaryArgs": []
+        }
+    ]
 }
