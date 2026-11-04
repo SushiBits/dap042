@@ -40,55 +40,69 @@
 /*- Prototypes --------------------------------------------------------------*/
 extern char usb_serial_number[16];
 
+#define GPIO(pin) ((GPIO_TypeDef *)((pin & 0xF0) ? GPIOB : GPIOA))
+#define pinMode(pin, mode) MODIFY_REG(GPIO(pin)->MODER, 0b11 << ((pin & 0x0F) << 1), (mode & 0b11) << ((pin & 0x0F) << 1))
+#define digitalWrite(pin, value) (GPIO(pin)->BSRR = 0b1 << ((pin & 0x0F) + (value ? 0 : 16)))
+#define digitalRead(pin) !!(GPIO(pin)->IDR & (0b1 << (pin & 0x0F)))
+
+#define PIN_TCK 0x05
+#define PIN_TMS 0x04
+#define PIN_TDI 0x07
+#define PIN_TDO 0x06
+#define PIN_NSRST 0x11
+
+#define INPUT 0b00
+#define OUTPUT 0b01
+
 /*- Implementations ---------------------------------------------------------*/
 
 //-----------------------------------------------------------------------------
-static inline void DAP_CONFIG_SWCLK_TCK_write(int value) {}
+static inline void DAP_CONFIG_SWCLK_TCK_write(int value) { digitalWrite(PIN_TCK, value); }
 
 //-----------------------------------------------------------------------------
-static inline void DAP_CONFIG_SWDIO_TMS_write(int value) {}
+static inline void DAP_CONFIG_SWDIO_TMS_write(int value) { digitalWrite(PIN_TMS, value); }
 
 //-----------------------------------------------------------------------------
-static inline void DAP_CONFIG_TDI_write(int value) {}
+static inline void DAP_CONFIG_TDI_write(int value) { digitalWrite(PIN_TDI, value); }
 
 //-----------------------------------------------------------------------------
-static inline void DAP_CONFIG_TDO_write(int value) {}
+static inline void DAP_CONFIG_TDO_write(int value) { digitalWrite(PIN_TDO, value); }
 
 //-----------------------------------------------------------------------------
 static inline void DAP_CONFIG_nTRST_write(int value) {}
 
 //-----------------------------------------------------------------------------
-static inline void DAP_CONFIG_nRESET_write(int value) {}
+static inline void DAP_CONFIG_nRESET_write(int value) { digitalWrite(PIN_NSRST, value); }
 
 //-----------------------------------------------------------------------------
-static inline int DAP_CONFIG_SWCLK_TCK_read(void) {}
+static inline int DAP_CONFIG_SWCLK_TCK_read(void) { return digitalRead(PIN_TCK); }
 
 //-----------------------------------------------------------------------------
-static inline int DAP_CONFIG_SWDIO_TMS_read(void) {}
+static inline int DAP_CONFIG_SWDIO_TMS_read(void) { return digitalRead(PIN_TMS); }
 
 //-----------------------------------------------------------------------------
-static inline int DAP_CONFIG_TDO_read(void) {}
+static inline int DAP_CONFIG_TDO_read(void) { return digitalRead(PIN_TDO); }
 
 //-----------------------------------------------------------------------------
-static inline int DAP_CONFIG_TDI_read(void) {}
+static inline int DAP_CONFIG_TDI_read(void) { return digitalRead(PIN_TDI); }
 
 //-----------------------------------------------------------------------------
-static inline int DAP_CONFIG_nTRST_read(void) {}
+static inline int DAP_CONFIG_nTRST_read(void) { return 1; }
 
 //-----------------------------------------------------------------------------
-static inline int DAP_CONFIG_nRESET_read(void) {}
+static inline int DAP_CONFIG_nRESET_read(void) { return digitalRead(PIN_NSRST); }
 
 //-----------------------------------------------------------------------------
-static inline void DAP_CONFIG_SWCLK_TCK_set(void) {}
+static inline void DAP_CONFIG_SWCLK_TCK_set(void) { digitalWrite(PIN_TCK, 1); }
 
 //-----------------------------------------------------------------------------
-static inline void DAP_CONFIG_SWCLK_TCK_clr(void) {}
+static inline void DAP_CONFIG_SWCLK_TCK_clr(void) { digitalWrite(PIN_TCK, 0); }
 
 //-----------------------------------------------------------------------------
-static inline void DAP_CONFIG_SWDIO_TMS_in(void) {}
+static inline void DAP_CONFIG_SWDIO_TMS_in(void) { pinMode(PIN_TMS, INPUT); }
 
 //-----------------------------------------------------------------------------
-static inline void DAP_CONFIG_SWDIO_TMS_out(void) {}
+static inline void DAP_CONFIG_SWDIO_TMS_out(void) { pinMode(PIN_TMS, OUTPUT); }
 
 //-----------------------------------------------------------------------------
 static inline void DAP_CONFIG_SETUP(void) {}
