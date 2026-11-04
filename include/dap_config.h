@@ -40,19 +40,86 @@
 /*- Prototypes --------------------------------------------------------------*/
 extern char usb_serial_number[16];
 
+/*- GPIO helpers ------------------------------------------------------------*/
+
+/**
+ * @defgroup dap_config_gpio GPIO helpers
+ *
+ * Minimal pin access for the bit-banged SWD/JTAG interface, built directly on
+ * the CMSIS register blocks so that each edge costs a single store.
+ *
+ * Pins are given as a packed pin number of the form 0xPN: the high nibble
+ * selects the port (0 = GPIOA, any other value = GPIOB) and the low nibble the
+ * pin within that port, so PIN_TCK (0x05) is PA5 and PIN_NSRST (0x11) is PB1.
+ * All helpers expect @p pin to be a compile-time constant.
+ *
+ * @{
+ */
+
+/**
+ * @brief Resolve the GPIO port that owns a packed pin number.
+ *
+ * @param[in] pin Packed pin number (0xPN).
+ * @return Pointer to the port register block, GPIOA for 0x0N, GPIOB for 0x1N.
+ */
 #define GPIO(pin) ((GPIO_TypeDef *)((pin & 0xF0) ? GPIOB : GPIOA))
+
+/**
+ * @brief Set the direction of a pin by writing its two MODER bits.
+ *
+ * MODER holds two bits per pin, so the shift is twice the pin index. The mask
+ * is cleared before the mode is merged in, leaving the neighbouring pins
+ * untouched.
+ *
+ * @param[in] pin  Packed pin number (0xPN).
+ * @param[in] mode One of #INPUT or #OUTPUT.
+ */
 #define pinMode(pin, mode) MODIFY_REG(GPIO(pin)->MODER, 0b11 << ((pin & 0x0F) << 1), (mode & 0b11) << ((pin & 0x0F) << 1))
+
+/**
+ * @brief Drive a pin high or low with a single write to BSRR.
+ *
+ * BSRR is used instead of a read-modify-write of ODR, so the transition is
+ * atomic and cannot be lost if the level is changed from an interrupt. The
+ * upper half of the register resets the pin, hence the +16 offset.
+ *
+ * @param[in] pin   Packed pin number (0xPN).
+ * @param[in] value Non-zero drives the pin high, zero drives it low.
+ */
 #define digitalWrite(pin, value) (GPIO(pin)->BSRR = 0b1 << ((pin & 0x0F) + (value ? 0 : 16)))
+
+/**
+ * @brief Sample the input level of a pin.
+ *
+ * @param[in] pin Packed pin number (0xPN).
+ * @return 1 if the pin reads high, 0 if it reads low.
+ */
 #define digitalRead(pin) !!(GPIO(pin)->IDR & (0b1 << (pin & 0x0F)))
 
-#define PIN_TCK 0x05
-#define PIN_TMS 0x04
-#define PIN_TDI 0x07
-#define PIN_TDO 0x06
-#define PIN_NSRST 0x11
+/**
+ * @name SWD/JTAG pin assignments
+ * Target debug port connections of the SUSHiBITS One Pro, as packed pin
+ * numbers.
+ * @{
+ */
+#define PIN_TCK 0x05   ///< SWCLK/TCK, PA5.
+#define PIN_TMS 0x04   ///< SWDIO/TMS, PA4.
+#define PIN_TDI 0x07   ///< TDI, PA7.
+#define PIN_TDO 0x06   ///< TDO, PA6.
+#define PIN_NSRST 0x11 ///< nRESET, PB1.
+/** @} */
 
-#define INPUT 0b00
-#define OUTPUT 0b01
+/**
+ * @name Pin modes
+ * Values accepted by the @p mode argument of pinMode(); they map onto the two
+ * least significant bits of MODER.
+ * @{
+ */
+#define INPUT 0b00  ///< Input, high impedance.
+#define OUTPUT 0b01 ///< General purpose push-pull output.
+/** @} */
+
+/** @} */
 
 /*- Implementations ---------------------------------------------------------*/
 
