@@ -6,6 +6,7 @@
 
 /*- Includes ----------------------------------------------------------------*/
 #include "stm32f0xx.h"
+#include "usbdefs.h"
 
 /*- Definitions -------------------------------------------------------------*/
 #define DAP_CONFIG_ENABLE_JTAG
@@ -19,9 +20,8 @@
 #define DAP_CONFIG_JTAG_DEV_COUNT      8
 
 // DAP_CONFIG_PRODUCT_STR must contain "CMSIS-DAP" to be compatible with the standard
-#define DAP_CONFIG_VENDOR_STR          "Alex Taradov"
-#define DAP_CONFIG_PRODUCT_STR         "Generic CMSIS-DAP Adapter"
-#define DAP_CONFIG_SER_NUM_STR         usb_serial_number
+#define DAP_CONFIG_VENDOR_STR          USB_STRING_VENDOR
+#define DAP_CONFIG_PRODUCT_STR         USB_STRING_PRODUCT
 #define DAP_CONFIG_CMSIS_DAP_VER_STR   "2.0.0"
 
 //#define DAP_CONFIG_RESET_TARGET_FN     target_specific_reset_function
@@ -38,7 +38,6 @@
 #define DAP_CONFIG_FAST_CLOCK          8550000
 
 /*- Prototypes --------------------------------------------------------------*/
-extern char usb_serial_number[16];
 
 /*- GPIO helpers ------------------------------------------------------------*/
 
