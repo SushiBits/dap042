@@ -61,7 +61,7 @@ static const uint8_t hid_report_desc[] = {
     HID_END_COLLECTION
 };
 
-__attribute__((packed)) static const struct usb_config {
+static const struct usb_config {
     struct usb_config_descriptor        config;
     struct usb_iad_descriptor           hid_iad;
     struct usb_interface_descriptor     hid;
