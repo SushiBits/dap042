@@ -63,4 +63,7 @@ static void Default_IRQHandler(void) {
     for (;;) __WFE();
 }
 
-__attribute__((weak, alias("Default_IRQHandler"))) void _exit(int);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wbuiltin-declaration-mismatch"
+__attribute__((weak, alias("Default_IRQHandler"))) void _exit(void);
+#pragma GCC diagnostic pop
