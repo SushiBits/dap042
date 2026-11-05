@@ -4,6 +4,8 @@ TARGET_HEX := $(TARGET:.elf=.ihx)
 TARGET_BIN := $(TARGET:.elf=.bin)
 TARGETS := $(TARGET) $(TARGET_HEX) $(TARGET_BIN)
 
+BUILD_DIR := .build
+
 ARCH := arm-none-eabi-
 CC := $(ARCH)gcc
 CXX := $(ARCH)g++
@@ -16,19 +18,28 @@ OBJCOPY := $(ARCH)objcopy
 GENHDRS := $(patsubst %.h,%_handlers.h,$(wildcard contrib/platform/include/stm32f0??x?.h))
 
 SRC_PATHS := src contrib/libusb_stm32/src contrib/platform/src
-C_FILES := $(foreach SRC_PATH,$(SRC_PATHS),$(wildcard $(SRC_PATH)/*.c))
-CXX_FILES := $(foreach EXTENSION,cc cpp,$(foreach SRC_PATH,$(SRC_PATHS),$(wildcard $(SRC_PATH)/*.$(EXTENSION))))
-S_FILES := $(foreach EXTENSION,S s,$(foreach SRC_PATH,$(SRC_PATHS),$(wildcard $(SRC_PATH)/*.$(EXTENSION))))
-SRCS := $(C_FILES) $(CXX_FILES) $(S_FILES)
-OBJS := $(foreach SRC,$(SRCS),$(SRC).o)
+HEADER_PATHS := include contrib/libusb_stm32/inc contrib/platform/include contrib/cmsis/CMSIS/Core/Include
+LIB_PATHS := lib contrib/platform/lib
+
+C_FILES := $(wildcard $(addsuffix /*.c, $(SRC_PATHS)))
+CXX_FILES := $(wildcard $(addsuffix /*.cc, $(SRC_PATHS)) $(addsuffix /*.cpp, $(SRC_PATHS)))
+S_FILES := $(wildcard $(addsuffix /*.S, $(SRC_PATHS)) $(addsuffix /*.s, $(SRC_PATHS)))
+LD_FILES := $(wildcard $(addsuffix /*.ld, $(LIB_PATHS)))
+SRC_FILES := $(C_FILES) $(CXX_FILES) $(S_FILES)
+OBJS := $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(SRC_FILES)))
 DEPS := $(OBJS:.o=.d)
 
 CPUFLAGS := -mcpu=cortex-m0 -mthumb
-CPPFLAGS := -Iinclude -Icontrib/platform/include -Icontrib/libusb_stm32/inc -Icontrib/cmsis/CMSIS/Core/Include -DSTM32F042x6 -DHSE_VALUE=12000000
-CFLAGS := $(CPUFLAGS) -std=gnu17 -MMD -MP -Og -g -ffunction-sections -fdata-sections -Wall
-CXXFLAGS := $(CPUFLAGS) -std=gnu++17 -MMD -MP -Og -g -ffunction-sections -fdata-sections -Wall
-ASFLAGS := $(CPUFLAGS) -MMD -MP -g -ffunction-sections -fdata-sections -Wall
-LDFLAGS := $(CPUFLAGS) -Llib -Lcontrib/platform/lib -Wl,-Tdap042.ld -Wl,--gc-sections # Platform code include a linker script fragment.
+OPTFLAGS := -Og -g
+WARNFLAGS := -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable -Wno-unused-function
+GENFLAGS := -ffunction-sections -fdata-sections
+DEPFLAGS := -MMD -MP
+
+CPPFLAGS := $(addprefix -I, $(HEADER_PATHS)) -DSTM32F042x6 -DHSE_VALUE=12000000
+CFLAGS := $(CPUFLAGS) -std=gnu17 $(DEPFLAGS) $(GENFLAGS) $(OPTFLAGS) $(WARNFLAGS)
+CXXFLAGS := $(CPUFLAGS) -std=gnu++17 $(DEPFLAGS) $(GENFLAGS) $(OPTFLAGS) $(WARNFLAGS)
+ASFLAGS := $(CPUFLAGS) $(DEPFLAGS) $(GENFLAGS) $(OPTFLAGS) $(WARNFLAGS)
+LDFLAGS := $(CPUFLAGS) $(addprefix -L, $(LIB_PATHS)) -Wl,-Tdap042.ld -Wl,--gc-sections # Platform code include a linker script fragment.
 
 all: headers $(TARGET)
 hex: $(TARGET_HEX)
@@ -38,22 +49,27 @@ headers: $(GENHDRS)
 contrib/platform/include/%_handlers.h: contrib/platform/include/%.h
 	bash contrib/platform/share/irqn.sh "\"stm32f0xx_it.h\"" < $< > $@
 
-%.c.o: %.c $(GENHDRS)
+$(BUILD_DIR)/%.c.o: %.c $(GENHDRS)
+	@mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
-%.cc.o: %.cc $(GENHDRS)
+$(BUILD_DIR)/%.cc.o: %.cc $(GENHDRS)
+	@mkdir -p $(dir $@)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
-%.cpp.o: %.cpp $(GENHDRS)
+$(BUILD_DIR)/%.cpp.o: %.cpp $(GENHDRS)
+	@mkdir -p $(dir $@)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
-%.S.o: %.S $(GENHDRS)
+$(BUILD_DIR)/%.S.o: %.S $(GENHDRS)
+	@mkdir -p $(dir $@)
 	$(CCAS) $(CPPFLAGS) $(ASFLAGS) -c $< -o $@
 
-%.s.o: %.s $(GENHDRS)
+$(BUILD_DIR)/%.s.o: %.s $(GENHDRS)
+	@mkdir -p $(dir $@)
 	$(AS) $(CPPFLAGS) $(ASFLAGS) -c $< -o $@
 
-$(TARGET): $(OBJS)
+$(TARGET): $(OBJS) $(LD_FILES)
 	$(if $(CXX_FILES),$(CXXLD),$(CCLD)) $(LDFLAGS) $(OBJS) $(LIBS) -o $(TARGET)
 
 %.ihx: %.elf
@@ -63,7 +79,7 @@ $(TARGET): $(OBJS)
 	$(OBJCOPY) -O binary $< $@
 
 clean:
-	-rm -rf $(TARGETS) $(DEPS) $(OBJS)
+	-rm -rf $(TARGETS) $(BUILD_DIR)
 
 distclean: clean
 	-rm -rf $(GENHDRS)

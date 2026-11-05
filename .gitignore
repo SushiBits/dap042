@@ -110,3 +110,5 @@ fp-info-cache
 
 # Auto-generated platform headers and handlers
 contrib/platform/include/stm32f0??x?_handlers.h
+
+.build/
