@@ -81,7 +81,7 @@ SECTIONS
         PROVIDE_HIDDEN(__preinit_array_end = .);
     } > IROM
     
-    .init_array :
+    .init_array (READONLY) :
     {
         PROVIDE_HIDDEN(__init_array_start = .);
         KEEP(*(SORT(.init_array.*)))
@@ -89,7 +89,7 @@ SECTIONS
         PROVIDE_HIDDEN(__init_array_end = .);
     } > IROM
     
-    .fini_array :
+    .fini_array (READONLY) :
     {
         PROVIDE_HIDDEN(__fini_array_start = .);
         KEEP(*(SORT(.fini_array.*)))
