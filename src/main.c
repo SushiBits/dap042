@@ -6,6 +6,8 @@
 
 #include "stm32f0xx.h"
 
+#include "usbmain.h"
+
 void SystemInit(void) {
     // Set up HSE
     // HSE is a Murata CERALOCK tight-tolerance ceramic resonator: cheap,
@@ -37,5 +39,7 @@ void SystemInit(void) {
 }
 
 int main(void) {
+    usb_init();
+    
     for (;;) __WFE(); // Idle loop
 }

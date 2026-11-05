@@ -20,13 +20,32 @@
 
 #define USB_EPC_SIZE 8 // Control EP
 #define USB_EPD_SIZE 64 // Data EP
+#define USB_HID_IF 0
 #define USB_HID_RX_EP (USB_EPDIR_IN | 0x01)
 #define USB_HID_TX_EP (USB_EPDIR_OUT | 0x01)
+#define USB_CDC_IF 1
 #define USB_CDC_SB_EP (USB_EPDIR_OUT | 0x02)
+#define USB_CDC_DATA_IF 2
 #define USB_CDC_RX_EP (USB_EPDIR_IN | 0x03)
 #define USB_CDC_TX_EP (USB_EPDIR_OUT | 0x03)
 
-#ifdef _USBMAIN_C_
+#if defined(_USBMAIN_C_)
+
+static const uint8_t hid_report_desc[] = {
+    HID_RI_USAGE_PAGE(16, 0x00FF),
+    HID_USAGE(1),
+    HID_COLLECTION(HID_APPLICATION_COLLECTION),
+        HID_LOGICAL_MINIMUM(0),
+        HID_RI_LOGICAL_MAXIMUM(16, 0x00FF),
+        HID_REPORT_SIZE(8),
+        HID_REPORT_COUNT(64),
+        HID_USAGE(1),
+        HID_INPUT(HID_IOF_DATA | HID_IOF_VARIABLE | HID_IOF_ABSOLUTE),
+        HID_REPORT_COUNT(64),
+        HID_USAGE(1),
+        HID_OUTPUT(HID_IOF_DATA | HID_IOF_VARIABLE | HID_IOF_ABSOLUTE),
+    HID_END_COLLECTION
+};
 
 static const struct usb_device_descriptor device_desc = {
     .bLength            = sizeof(struct usb_device_descriptor),
@@ -43,22 +62,6 @@ static const struct usb_device_descriptor device_desc = {
     .iProduct           = 2,
     .iSerialNumber      = INTSERIALNO_DESCRIPTOR,
     .bNumConfigurations = 1,
-};
-
-static const uint8_t hid_report_desc[] = {
-    HID_RI_USAGE_PAGE(16, 0x00FF),
-    HID_USAGE(1),
-    HID_COLLECTION(HID_APPLICATION_COLLECTION),
-        HID_LOGICAL_MINIMUM(0),
-        HID_RI_LOGICAL_MAXIMUM(16, 0x00FF),
-        HID_REPORT_SIZE(8),
-        HID_REPORT_COUNT(64),
-        HID_USAGE(1),
-        HID_INPUT(HID_IOF_DATA | HID_IOF_VARIABLE | HID_IOF_ABSOLUTE),
-        HID_REPORT_COUNT(64),
-        HID_USAGE(1),
-        HID_OUTPUT(HID_IOF_DATA | HID_IOF_VARIABLE | HID_IOF_ABSOLUTE),
-    HID_END_COLLECTION
 };
 
 static const struct usb_config {
@@ -90,7 +93,7 @@ static const struct usb_config {
     .hid_iad = {
         .bLength = sizeof(struct usb_iad_descriptor),
         .bDescriptorType        = USB_DTYPE_INTERFASEASSOC,
-        .bFirstInterface        = 0,
+        .bFirstInterface        = USB_HID_IF,
         .bInterfaceCount        = 1,
         .bFunctionClass         = USB_CLASS_HID,
         .bFunctionSubClass      = USB_HID_SUBCLASS_NONBOOT,
@@ -100,7 +103,7 @@ static const struct usb_config {
     .hid = {
         .bLength                = sizeof(struct usb_interface_descriptor),
         .bDescriptorType        = USB_DTYPE_INTERFACE,
-        .bInterfaceNumber       = 0,
+        .bInterfaceNumber       = USB_HID_IF,
         .bAlternateSetting      = 0,
         .bNumEndpoints          = 2,
         .bInterfaceClass        = USB_CLASS_HID,
@@ -138,7 +141,7 @@ static const struct usb_config {
     .comm_iad = {
         .bLength = sizeof(struct usb_iad_descriptor),
         .bDescriptorType        = USB_DTYPE_INTERFASEASSOC,
-        .bFirstInterface        = 1,
+        .bFirstInterface        = USB_CDC_IF,
         .bInterfaceCount        = 2,
         .bFunctionClass         = USB_CLASS_CDC,
         .bFunctionSubClass      = USB_CDC_SUBCLASS_ACM,
@@ -148,7 +151,7 @@ static const struct usb_config {
     .comm = {
         .bLength                = sizeof(struct usb_interface_descriptor),
         .bDescriptorType        = USB_DTYPE_INTERFACE,
-        .bInterfaceNumber       = 1,
+        .bInterfaceNumber       = USB_CDC_IF,
         .bAlternateSetting      = 0,
         .bNumEndpoints          = 1,
         .bInterfaceClass        = USB_CLASS_CDC,
@@ -167,7 +170,7 @@ static const struct usb_config {
         .bDescriptorType        = USB_DTYPE_CS_INTERFACE,
         .bDescriptorSubType     = USB_DTYPE_CDC_CALL_MANAGEMENT,
         .bmCapabilities         = 0,
-        .bDataInterface         = 2,
+        .bDataInterface         = USB_CDC_DATA_IF,
     },
     .cdc_acm = {
         .bFunctionLength        = sizeof(struct usb_cdc_acm_desc),
@@ -179,8 +182,8 @@ static const struct usb_config {
         .bFunctionLength        = sizeof(struct usb_cdc_union_desc),
         .bDescriptorType        = USB_DTYPE_CS_INTERFACE,
         .bDescriptorSubType     = USB_DTYPE_CDC_UNION,
-        .bMasterInterface0      = 1,
-        .bSlaveInterface0       = 2,
+        .bMasterInterface0      = USB_CDC_IF,
+        .bSlaveInterface0       = USB_CDC_DATA_IF,
     },
     .comm_ep = {{
         .bLength                = sizeof(struct usb_endpoint_descriptor),
@@ -193,7 +196,7 @@ static const struct usb_config {
     .data = {
         .bLength                = sizeof(struct usb_interface_descriptor),
         .bDescriptorType        = USB_DTYPE_INTERFACE,
-        .bInterfaceNumber       = 2,
+        .bInterfaceNumber       = USB_CDC_DATA_IF,
         .bAlternateSetting      = 0,
         .bNumEndpoints          = 2,
         .bInterfaceClass        = USB_CLASS_CDC_DATA,
