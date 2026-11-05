@@ -31,11 +31,11 @@
 #define DAP_CONFIG_PERFORMANCE_ATTR
 
 // A value at which dap_clock_test() produces 1 kHz output on the SWCLK pin
-#define DAP_CONFIG_DELAY_CONSTANT      19000
+#define DAP_CONFIG_DELAY_CONSTANT      5800
 
 // A threshold for switching to fast clock (no added delays)
 // This is the frequency produced by dap_clock_test(1) on the SWCLK pin
-#define DAP_CONFIG_FAST_CLOCK          8550000
+#define DAP_CONFIG_FAST_CLOCK          3100000
 
 /*- Prototypes --------------------------------------------------------------*/
 
@@ -171,16 +171,43 @@ static inline void DAP_CONFIG_SWDIO_TMS_in(void) { pinMode(PIN_TMS, INPUT); }
 static inline void DAP_CONFIG_SWDIO_TMS_out(void) { pinMode(PIN_TMS, OUTPUT); }
 
 //-----------------------------------------------------------------------------
-static inline void DAP_CONFIG_SETUP(void) {}
+static inline void DAP_CONFIG_DISCONNECT(void);
+static inline void DAP_CONFIG_SETUP(void) {
+  GPIOA->OSPEEDR |= 0x0000FF00; // High speed on TMS, TCK, TDI and TDO
+  MODIFY_REG(GPIOA->PUPDR, 0x00000300, 0x00000100); // TMS pull-up
+  GPIOB->OSPEEDR |= 0x0000000C; // High speed on nSRST
+  GPIOB->OTYPER |= 0x0002; // nSRST OD
+  // (There is an onboard 10k PU AND an internal PU in taget chip, so no need to tri-plicate that.)
+  DAP_CONFIG_DISCONNECT();
+}
 
 //-----------------------------------------------------------------------------
-static inline void DAP_CONFIG_DISCONNECT(void) {}
+static inline void DAP_CONFIG_DISCONNECT(void) {
+  pinMode(PIN_TMS, INPUT);
+  pinMode(PIN_TCK, INPUT);
+  pinMode(PIN_TDI, INPUT);
+  pinMode(PIN_TDO, INPUT);
+  pinMode(PIN_NSRST, INPUT);
+}
 
 //-----------------------------------------------------------------------------
-static inline void DAP_CONFIG_CONNECT_SWD(void) {}
+static inline void DAP_CONFIG_CONNECT_SWD(void) {
+  digitalWrite(PIN_TMS, 1);     /* level first: no glitch on the mode switch */
+  digitalWrite(PIN_TCK, 1);
+  digitalWrite(PIN_NSRST, 1);
+  pinMode(PIN_TMS, OUTPUT);
+  pinMode(PIN_TCK, OUTPUT);
+  pinMode(PIN_NSRST, OUTPUT);
+  pinMode(PIN_TDI, INPUT);      /* JTAG-only signals idle high-Z under SWD */
+  pinMode(PIN_TDO, INPUT);
+}
 
 //-----------------------------------------------------------------------------
-static inline void DAP_CONFIG_CONNECT_JTAG(void) {}
+static inline void DAP_CONFIG_CONNECT_JTAG(void) {
+  DAP_CONFIG_CONNECT_SWD();
+  digitalWrite(PIN_TDI, 1);
+  pinMode(PIN_TDI, OUTPUT);
+}
 
 //-----------------------------------------------------------------------------
 static inline void DAP_CONFIG_LED(int index, int state) {}
