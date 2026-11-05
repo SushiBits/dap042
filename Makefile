@@ -14,6 +14,7 @@ CCAS := $(CC) -x assembler-with-cpp
 CCLD := $(CC)
 CXXLD := $(CXX)
 OBJCOPY := $(ARCH)objcopy
+SIZE := $(ARCH)size
 
 GENHDRS := $(patsubst %.h,%_handlers.h,$(wildcard contrib/platform/include/stm32f0??x?.h))
 
@@ -45,6 +46,14 @@ all: headers $(TARGET)
 hex: $(TARGET_HEX)
 bin: $(TARGET_BIN)
 headers: $(GENHDRS)
+
+# Berkeley totals (text/data/bss), then the per-section breakdown. Sections
+# with address 0 (.comment, .ARM.attributes, .debug_*) are not loaded and do
+# not consume flash or SRAM.
+size: $(TARGET)
+	$(SIZE) $<
+	@echo
+	$(SIZE) -A $<
 
 contrib/platform/include/%_handlers.h: contrib/platform/include/%.h
 	bash contrib/platform/share/irqn.sh "\"stm32f0xx_it.h\"" < $< > $@
