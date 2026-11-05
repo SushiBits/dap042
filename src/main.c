@@ -7,6 +7,10 @@
 #include "stm32f0xx.h"
 
 #include "usbmain.h"
+#include "usbhid.h"
+#include "dap.h"
+
+#include <string.h>
 
 void SystemInit(void) {
     // Set up HSE
@@ -40,6 +44,23 @@ void SystemInit(void) {
 
 int main(void) {
     usb_init();
-    
-    for (;;) __WFE(); // Idle loop
+    dap_init();
+
+    for (;;) {
+        if (rx_drdy && !tx_drdy) {
+            if (dap_filter_request(rx_data)) {
+                memset(tx_data, 0, hid_size);
+                dap_process_request(rx_data, hid_size, tx_data, hid_size); // HID. Fixed size responses.
+                tx_drdy = true;
+                rx_drdy = false;
+                hid_data_tx();
+                hid_data_rx();
+            } else {
+                rx_drdy = false;
+                hid_data_rx();
+            }
+        } else {
+            __WFE();
+        }
+    }
 }

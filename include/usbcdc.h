@@ -13,6 +13,9 @@
 
 __BEGIN_DECLS
 
+void cdc_init(void);
+void cdc_deinit(void);
+
 usbd_respond cdc_control(usbd_device *dev, usbd_ctlreq *req, usbd_rqc_callback *callback);
 void cdc_ctrl_xfer(usbd_device *dev, uint8_t event, uint8_t ep);
 void cdc_data_xfer(usbd_device *dev, uint8_t event, uint8_t ep);
