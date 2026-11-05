@@ -1,12 +1,15 @@
 /**
- * @file minispin.ld
+ * @file dap042.ld
  *
- * Linker script snippet for minispin.
+ * Linker script for dap042. The memory layout is not included here: the
+ * device-specific map (stm32f042x4.ld for the 16 KiB production part,
+ * stm32f042x6.ld for the 32 KiB development part) is passed as the first -T
+ * script so that MEMORY is defined before these SECTIONS are processed. See
+ * MEMORY_LD in the Makefile.
  */
 
 
-/* Memory layout */
-INCLUDE stm32f042x6.ld
+/* Memory layout: supplied by the map file selected with MEMORY_LD. */
 
 ENTRY(Reset_IRQHandler);
 EXTERN(vector);

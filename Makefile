@@ -6,6 +6,11 @@ TARGETS := $(TARGET) $(TARGET_HEX) $(TARGET_BIN)
 
 BUILD_DIR := .build
 
+# Device memory map, linked before dap042.ld. Defaults to the 16 KiB part that
+# ships, so an over-size build fails here instead of on the production units.
+# Use `make MEMORY_LD=stm32f042x6` for the 32 KiB development board.
+MEMORY_LD ?= stm32f042x4
+
 ARCH := arm-none-eabi-
 CC := $(ARCH)gcc
 CXX := $(ARCH)g++
@@ -40,7 +45,7 @@ CPPFLAGS := $(addprefix -I, $(HEADER_PATHS)) -DSTM32F042x6 -DHSE_VALUE=12000000
 CFLAGS := $(CPUFLAGS) -std=gnu17 $(DEPFLAGS) $(GENFLAGS) $(OPTFLAGS) $(WARNFLAGS)
 CXXFLAGS := $(CPUFLAGS) -std=gnu++17 $(DEPFLAGS) $(GENFLAGS) $(OPTFLAGS) $(WARNFLAGS)
 ASFLAGS := $(CPUFLAGS) $(DEPFLAGS) $(GENFLAGS) $(OPTFLAGS) $(WARNFLAGS)
-LDFLAGS := $(CPUFLAGS) $(addprefix -L, $(LIB_PATHS)) -Wl,-Tdap042.ld -Wl,--gc-sections # Platform code include a linker script fragment.
+LDFLAGS := $(CPUFLAGS) $(addprefix -L, $(LIB_PATHS)) -Wl,-T$(MEMORY_LD).ld -Wl,-Tdap042.ld -Wl,--gc-sections # Platform code include a linker script fragment.
 
 all: headers $(TARGET)
 hex: $(TARGET_HEX)
