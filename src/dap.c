@@ -1060,6 +1060,25 @@ static void dap_transfer_block(void)
   request = dap_req_get_byte();
   ack = DAP_TRANSFER_INVALID;
 
+  // The report has a fixed size, so a count the host made up would walk off the
+  // end of the request buffer reading words that were never sent, or off the end
+  // of the response buffer writing words that are then dropped by
+  // dap_resp_add_word() while resp_count keeps climbing. Either way the count in
+  // the reply is a lie and the host reads misaligned data. Refuse the command.
+  {
+    int max_count = (request & DAP_TRANSFER_RnW)
+      ? (dap_resp_size - dap_resp_ptr) / (int)sizeof(uint32_t)
+      : (dap_req_size  - dap_req_ptr)  / (int)sizeof(uint32_t);
+
+    if (req_count > max_count)
+    {
+      dap_resp_set_byte(1, 0);
+      dap_resp_set_byte(2, 0);
+      dap_resp_set_byte(3, DAP_ERROR);
+      return;
+    }
+  }
+
   if (request & DAP_TRANSFER_RnW)
   {
     bool needs_posted = dap_needs_posted_read(request);
