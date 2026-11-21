@@ -61,7 +61,7 @@ size: $(TARGET)
 	$(SIZE) -A $<
 
 contrib/platform/include/%_handlers.h: contrib/platform/include/%.h
-	bash contrib/platform/share/irqn.sh "\"stm32f0xx_it.h\"" < $< > $@
+	python3 contrib/irqn/irqn.py -i $< -o $@
 
 $(BUILD_DIR)/%.c.o: %.c $(GENHDRS)
 	@mkdir -p $(dir $@)

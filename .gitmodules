@@ -6,3 +6,9 @@
 	path = contrib/libusb_stm32
 	url = git@github.com:dmitrystu/libusb_stm32.git
 	ignore = all
+[submodule "contrib/svdconv"]
+	path = contrib/svdconv
+	url = https://github.com/SushiBits/svdconv.git
+[submodule "contrib/irqn"]
+	path = contrib/irqn
+	url = https://github.com/SushiBits/irqn.git
