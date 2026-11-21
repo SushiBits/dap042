@@ -27,6 +27,7 @@
  */
 
 /*- Includes ----------------------------------------------------------------*/
+#include <limits.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -156,6 +157,15 @@ enum
   DAP_OK                    = 0x00,
   DAP_ERROR                 = 0xff,
 };
+
+// DAP_SWJ_Clock is meaningless at 0 Hz, and dap_setup_clock() divides by it.
+// Below this floor the derived bit delay grows large enough to wedge transfers,
+// so requests are clamped rather than trusted.
+#define DAP_SWJ_CLOCK_MIN       1000      // Hz
+
+// Upper bound for the DAP_SWJ_Pins wait, in microseconds. The specification
+// allows up to 3 s; anything longer is a host error, not a request to hang.
+#define DAP_SWJ_PINS_WAIT_MAX   3000000u
 
 enum
 {
@@ -601,6 +611,12 @@ static int dap_jtag_operation(int req, uint32_t *data)
 //-----------------------------------------------------------------------------
 static void dap_setup_clock(int freq)
 {
+  // Defensive: every caller above guards this, but a divide by zero here leaves
+  // the bit-bang loops with an unbounded delay, which is unrecoverable without
+  // a reset.
+  if (freq < DAP_SWJ_CLOCK_MIN)
+    freq = DAP_SWJ_CLOCK_MIN;
+
   if (freq > DAP_CONFIG_FAST_CLOCK)
   {
     dap_clock_delay = 0;
@@ -1154,7 +1170,7 @@ static void dap_swj_pins(void)
 {
   int value  = dap_req_get_byte();
   int select = dap_req_get_byte();
-  int wait   = dap_req_get_word();
+  uint32_t wait = dap_req_get_word();
 
   if (select & DAP_SWJ_SWCLK_TCK)
     DAP_CONFIG_SWCLK_TCK_write(value & DAP_SWJ_SWCLK_TCK);
@@ -1171,7 +1187,13 @@ static void dap_swj_pins(void)
   if (select & DAP_SWJ_nRESET)
     DAP_CONFIG_nRESET_write(value & DAP_SWJ_nRESET);
 
-  dap_delay_us(wait * 1000);
+  // Wait is already in microseconds per the CMSIS-DAP specification; multiplying
+  // it by 1000 turned a 100 us request into 100 ms and a 10 ms one into 10 s.
+  // Clamp so a bogus value cannot hold the command processor for minutes either.
+  if (wait > DAP_SWJ_PINS_WAIT_MAX)
+    wait = DAP_SWJ_PINS_WAIT_MAX;
+
+  dap_delay_us((int)wait);
 
   value =
     (DAP_CONFIG_SWCLK_TCK_read() ? DAP_SWJ_SWCLK_TCK : 0) |
@@ -1187,8 +1209,26 @@ static void dap_swj_pins(void)
 //-----------------------------------------------------------------------------
 static void dap_swj_clock(void)
 {
-  int freq = dap_req_get_word();
-  dap_setup_clock(freq);
+  uint32_t freq = dap_req_get_word();
+
+  // 0 Hz used to fall through to dap_setup_clock(), which divides by it and
+  // leaves dap_clock_delay at a value that makes the next SWJ operation run for
+  // minutes, wedging the command processor. Reject it outright.
+  if (0 == freq)
+  {
+    dap_resp_add_byte(DAP_ERROR);
+    return;
+  }
+
+  if (freq < DAP_SWJ_CLOCK_MIN)
+    freq = DAP_SWJ_CLOCK_MIN;
+
+  // dap_req_get_word() can return anything up to 0xFFFFFFFF; a value that does
+  // not fit in an int would come back negative and produce a negative delay.
+  if (freq > (uint32_t)INT_MAX)
+    freq = (uint32_t)INT_MAX;
+
+  dap_setup_clock((int)freq);
   dap_resp_add_byte(DAP_OK);
 }
 
