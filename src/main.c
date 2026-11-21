@@ -46,12 +46,26 @@ void SystemInit(void) {
 int main(void) {
     usb_init();
     dap_init();
+    //dap_clock_test(6000); for (;;) __WFE();
 
     for (;;) {
         if (rx_drdy && !tx_drdy) {
             if (dap_filter_request(rx_data)) {
                 memset(tx_data, 0, hid_size);
                 dap_process_request(rx_data, hid_size, tx_data, hid_size); // HID. Fixed size responses.
+
+                // dap_process_request() reports an overflow through
+                // dap_is_buf_error() rather than through its return value, and
+                // by then it has already written part of a response. The host
+                // parses the report according to the command, so a truncated
+                // one reads as data - a Transfer that claims more results than
+                // it carries. Replace the whole report with the shortest
+                // response that is valid for this command.
+                if (dap_is_buf_error()) {
+                    memset(tx_data, 0, hid_size);
+                    dap_build_error_response(rx_data[0], tx_data, hid_size);
+                }
+
                 tx_drdy = true;
                 rx_drdy = false;
                 hid_data_tx();

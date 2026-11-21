@@ -1610,6 +1610,52 @@ int dap_process_request(uint8_t *req, int req_size, uint8_t *resp, int resp_size
 }
 
 //-----------------------------------------------------------------------------
+int dap_build_error_response(uint8_t cmd, uint8_t *resp, int resp_size)
+{
+  // CMSIS-DAP gives every command its own response layout, and for several of
+  // them the byte after the command ID is a count, a port number or a pin state
+  // rather than a status. Answering a flat "[cmd][DAP_ERROR]" would be parsed
+  // as data by the host - a Transfer would claim 0xFF transfers - so each case
+  // gets the shortest response that is also valid for that command.
+  if (resp_size < 4)
+    return 0;
+
+  resp[0] = cmd;
+
+  switch (cmd)
+  {
+    case ID_DAP_INFO:            // zero length is how an unknown ID is reported
+      resp[1] = 0;
+      return 2;
+    case ID_DAP_CONNECT:         // zero port means no port could be selected
+      resp[1] = 0;
+      return 2;
+    case ID_DAP_TRANSFER:        // no transfers completed, so no status byte
+      resp[1] = 0;
+      return 2;
+    case ID_DAP_TRANSFER_BLOCK:  // zero count plus an invalid transfer status
+      resp[1] = 0;
+      resp[2] = 0;
+      resp[3] = DAP_TRANSFER_INVALID;
+      return 4;
+    case ID_DAP_JTAG_SEQUENCE:
+    case ID_DAP_SWD_SEQUENCE:    // no sequence results returned
+      resp[1] = 0;
+      return 2;
+    case ID_DAP_SWJ_PINS:        // no signal read back as asserted
+      resp[1] = 0;
+      return 2;
+    case ID_DAP_RESET_TARGET:    // second byte is the execute flag, not status
+      resp[1] = DAP_ERROR;
+      resp[2] = 0;
+      return 3;
+    default:
+      resp[1] = DAP_ERROR;
+      return 2;
+  }
+}
+
+//-----------------------------------------------------------------------------
 void dap_clock_test(int delay)
 {
   DAP_CONFIG_CONNECT_SWD();
