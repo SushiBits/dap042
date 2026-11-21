@@ -1237,6 +1237,12 @@ static void dap_swj_sequence(void)
 {
   int size = dap_req_get_byte();
 
+  // A zero length encodes 256 bits, the same as the JTAG and SWD sequence
+  // commands. Taken literally it clocks nothing at all, so a host that uses the
+  // short form gets silence instead of the sequence it asked for.
+  if (0 == size)
+    size = 256;
+
   while (size)
   {
     int sz = (size > 8) ? 8 : size;
