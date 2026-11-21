@@ -114,3 +114,4 @@ fp-info-cache
 contrib/platform/include/stm32f0??x?_handlers.h
 
 .build/
+*.log
