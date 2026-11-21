@@ -19,84 +19,11 @@
 usbd_device udev;
 uint32_t	ubuf[0x20];
 
-/*- Bring-up harness --------------------------------------------------------
- *
- * Records how far enumeration gets so a wedged device can be diagnosed from
- * the debugger instead of a scope. Read the block as:
- *
- *   usb_evt_count      > 0  host is driving the bus (SOFM fires at 1 kHz)
- *   usb_istr_last           ISTR as seen by the last interrupt
- *   usb_desc_count     > 0  host asked for a descriptor
- *   usb_desc_len_last       bytes handed back, USB_DESC_STALL if we refused
- *   usb_config_count   > 0  SET_CONFIGURATION reached usb_setconf()
- *   usb_log[]               last USB_LOG_SIZE {kind, a, b, c} tuples, oldest
- *                           first once usb_log_of is set; kind 0 = control
- *                           (bmRequestType<<8|bRequest, wValue, wLength),
- *                           1 = descriptor (wValue, wIndex, wLength),
- *                           2 = configuration (cfg)
- *
- * Serial-number strings are answered by the driver before usb_getdesc() runs,
- * so they do not appear in the log.
- */
-
-#define USB_LOG_SIZE 16
-#define USB_DESC_STALL 0xFFFF
-
-enum {
-    USB_LOG_CONTROL = 0,
-    USB_LOG_DESC    = 1,
-    USB_LOG_CONFIG  = 2,
-};
-
-volatile uint32_t usb_evt_count;
-volatile uint32_t usb_istr_last;
-volatile uint32_t usb_desc_count;
-volatile uint16_t usb_desc_len_last;
-volatile uint32_t usb_config_count;
-volatile uint16_t usb_log[USB_LOG_SIZE][4];
-volatile uint8_t  usb_log_idx;
-volatile uint8_t  usb_log_of;
-
-/* Interrupt-source histogram. Index is the first armed bit of ISTR, in the same
- * order evt_poll() checks them, so a storm names itself:
- *   0 CTR  1 RESET  2 SOF  3 WKUP  4 SUSP  5 ERR  6 ESOF  7 none-set
- * Index 7 climbing means the ISR is being entered with nothing pending at all.
- */
-volatile uint32_t usb_evt_hist[8];
-volatile uint16_t usb_istr_ring[8];
-volatile uint8_t  usb_istr_idx;
-
-static void usb_evt_tally(uint16_t istr) {
-    if (istr & USB_ISTR_CTR)        usb_evt_hist[0]++;
-    else if (istr & USB_ISTR_RESET) usb_evt_hist[1]++;
-    else if (istr & USB_ISTR_SOF)   usb_evt_hist[2]++;
-    else if (istr & USB_ISTR_WKUP)  usb_evt_hist[3]++;
-    else if (istr & USB_ISTR_SUSP)  usb_evt_hist[4]++;
-    else if (istr & USB_ISTR_ERR)   usb_evt_hist[5]++;
-    else if (istr & USB_ISTR_ESOF)  usb_evt_hist[6]++;
-    else                            usb_evt_hist[7]++;
-}
-
-static void usb_log_add(uint8_t kind, uint16_t a, uint16_t b, uint16_t c) {
-    uint8_t i = usb_log_idx;
-    usb_log[i][0] = kind;
-    usb_log[i][1] = a;
-    usb_log[i][2] = b;
-    usb_log[i][3] = c;
-    i = (i + 1) & (USB_LOG_SIZE - 1);
-    usb_log_idx = i;
-    if (i == 0) usb_log_of = 1;
-}
-
 static usbd_respond usb_getdesc(usbd_ctlreq *req, void **address, uint16_t *length) {
     const uint8_t dtype = req->wValue >> 8;
     const uint8_t dnumber = req->wValue & 0xFF;
     const void* desc;
     uint16_t len = 0;
-
-    usb_desc_count++;
-    usb_desc_len_last = USB_DESC_STALL;
-    usb_log_add(USB_LOG_DESC, req->wValue, req->wIndex, req->wLength);
 
     switch (dtype) {
     case USB_DTYPE_DEVICE:
@@ -119,16 +46,12 @@ static usbd_respond usb_getdesc(usbd_ctlreq *req, void **address, uint16_t *leng
     if (len == 0) {
         len = ((struct usb_header_descriptor*)desc)->bLength;
     }
-    usb_desc_len_last = len;
     *address = (void*)desc;
     *length = len;
     return usbd_ack;
 }
 
 static usbd_respond usb_control(usbd_device *dev, usbd_ctlreq *req, usbd_rqc_callback *callback) {
-    usb_log_add(USB_LOG_CONTROL, ((uint16_t)req->bmRequestType << 8) | req->bRequest,
-                req->wValue, req->wLength);
-
     if ((req->bmRequestType & USB_REQ_RECIPIENT) == USB_REQ_INTERFACE) {
         switch (req->wIndex) {
         case USB_HID_IF:
@@ -157,9 +80,6 @@ static void usb_teardown(usbd_device *dev) {
 }
 
 static usbd_respond usb_setconf(usbd_device *dev, uint8_t cfg) {
-    usb_config_count++;
-    usb_log_add(USB_LOG_CONFIG, cfg, 0, 0);
-
     usb_teardown(dev);
     switch (cfg) {
     case 0:
@@ -200,13 +120,6 @@ void usb_init(void) {
 }
 
 void USB_IRQHandler(void) {
-    uint16_t istr = USB->ISTR;
-
-    usb_evt_count++;
-    usb_istr_last = istr;
-    usb_istr_ring[usb_istr_idx++ & 7] = istr;
-    usb_evt_tally(istr);
-
     usbd_poll(&udev);
 }
 
