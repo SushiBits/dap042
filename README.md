@@ -190,8 +190,8 @@ flash wait-state configuration and GPIO implementation.
 `DAP_CONFIG_PACKET_COUNT` is 1, matching the single outstanding transfer the
 glue implements.
 
-Three fixes here differ from upstream free-dap and are worth knowing about when
-merging:
+Five behaviours here differ from upstream free-dap and are worth knowing about
+when merging:
 
 - `DAP_SWJ_Pins` treats `Wait` as microseconds, per the specification. Upstream
   multiplies by 1000.
@@ -199,6 +199,14 @@ merging:
   256 bits. Upstream divides by zero and clocks nothing respectively.
 - `DAP_TransferBlock` rejects a count that does not fit the report instead of
   returning a response whose count disagrees with the data.
+- `DAP_{JTAG,SWD}_Sequence` counts the results before it drives a clock, and
+  answers `DAP_ERROR` if they will not fit. Upstream replies `DAP_OK` and
+  silently drops the trailing ones, having already moved the target.
+- An overrun detected by `dap_is_buf_error()` is replaced, in the glue, with the
+  shortest response that is valid for that command. Upstream would send
+  whatever partially-filled buffer it had, which the host parses as data.
+  `dap_build_error_response()` holds the per-command table, because the byte
+  after the command ID means different things to different commands.
 
 ## License
 
