@@ -36,7 +36,7 @@ OBJS := $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(SRC_FILES)))
 DEPS := $(OBJS:.o=.d)
 
 CPUFLAGS := -mcpu=cortex-m0 -mthumb
-OPTFLAGS := -Og -g
+OPTFLAGS := -Og -g3
 WARNFLAGS := -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable -Wno-unused-function
 GENFLAGS := -ffunction-sections -fdata-sections
 DEPFLAGS := -MMD -MP
