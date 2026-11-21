@@ -1284,11 +1284,60 @@ static void dap_swd_configure(void)
 }
 
 //-----------------------------------------------------------------------------
+// Both sequence commands write DAP_OK before they know whether the results will
+// fit, and by the time an overflow is detected the clocks have already been
+// driven and the target's TAP or SWD state has moved. That cannot be undone, so
+// answering DAP_OK with missing data - or answering "0 sequences" as though
+// nothing happened - is wrong either way. Refuse the command before the port is
+// touched.
+//
+// Walks the request without consuming it: returns false if the request is
+// truncated or the results would not fit the response buffer.
+static bool dap_sequence_fits(bool jtag)
+{
+  int seq_count, p, need = 2;   // command ID plus status byte
+
+  if (dap_req_size - dap_req_ptr < 1)
+    return false;
+
+  seq_count = dap_req_buf[dap_req_ptr];
+  p = dap_req_ptr + 1;
+
+  for (int i = 0; i < seq_count; i++)
+  {
+    int info, count, read, bytes;
+
+    if (dap_req_size - p < 1)
+      return false;
+
+    info  = dap_req_buf[p++];
+    count = info & 0x3f;        // a count of zero encodes 64 bits
+    read  = jtag ? (info & JTAG_SEQUENCE_TDO) : (info & SWD_SEQUENCE_DIN);
+    bytes = (count == 0) ? 8 : (count + 7) / 8;
+
+    // JTAG shifts TDI alongside every TDO capture, so the request carries data
+    // either way. An SWD read sequence carries no request data at all.
+    p += (jtag || !read) ? bytes : 0;
+
+    if (read)
+      need += bytes;
+  }
+
+  return (p <= dap_req_size) && (need <= dap_resp_size);
+}
+
+//-----------------------------------------------------------------------------
 static void dap_swd_sequence(void)
 {
   int req_count;
 
   if (DAP_PORT_SWD != dap_port)
+  {
+    dap_resp_add_byte(DAP_ERROR);
+    return;
+  }
+
+  if (!dap_sequence_fits(false))
   {
     dap_resp_add_byte(DAP_ERROR);
     return;
@@ -1342,6 +1391,12 @@ static void dap_jtag_sequence(void)
   int req_count;
 
   if (DAP_PORT_JTAG != dap_port)
+  {
+    dap_resp_add_byte(DAP_ERROR);
+    return;
+  }
+
+  if (!dap_sequence_fits(true))
   {
     dap_resp_add_byte(DAP_ERROR);
     return;
