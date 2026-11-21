@@ -27,6 +27,16 @@ void hid_init(void) {
 void hid_deinit(void) { rx_drdy = tx_drdy = false; }
 
 usbd_respond hid_class_control(usbd_device *dev, usbd_ctlreq *req, usbd_rqc_callback *callback) {
+    switch (req->bRequest) {
+        case USB_HID_SETIDLE:
+            return usbd_ack;
+        case USB_HID_GETREPORT:
+            dev->status.data_ptr = &tx_data;
+            dev->status.data_count = sizeof(tx_data);
+            return usbd_ack;
+        default:
+            return usbd_fail;
+        }
     return usbd_fail; // Stub
 }
 
