@@ -32,11 +32,11 @@
 #if defined(_USBMAIN_C_)
 
 static const uint8_t hid_report_desc[] = {
-    HID_RI_USAGE_PAGE(16, 0x00FF),
+    HID_USAGE_PAGE(0xFF),
     HID_USAGE(1),
     HID_COLLECTION(HID_APPLICATION_COLLECTION),
         HID_LOGICAL_MINIMUM(0),
-        HID_RI_LOGICAL_MAXIMUM(16, 0x00FF),
+        HID_LOGICAL_MAXIMUM(0xFF),
         HID_REPORT_SIZE(8),
         HID_REPORT_COUNT(64),
         HID_USAGE(1),
@@ -50,7 +50,7 @@ static const uint8_t hid_report_desc[] = {
 static const struct usb_device_descriptor device_desc = {
     .bLength            = sizeof(struct usb_device_descriptor),
     .bDescriptorType    = USB_DTYPE_DEVICE,
-    .bcdUSB             = VERSION_BCD(2,0,0),
+    .bcdUSB             = VERSION_BCD(1,1,0),
     .bDeviceClass       = USB_CLASS_IAD,
     .bDeviceSubClass    = USB_SUBCLASS_IAD,
     .bDeviceProtocol    = USB_PROTO_IAD,
@@ -66,7 +66,6 @@ static const struct usb_device_descriptor device_desc = {
 
 static const struct usb_config {
     struct usb_config_descriptor        config;
-    struct usb_iad_descriptor           hid_iad;
     struct usb_interface_descriptor     hid;
     struct usb_hid_descriptor           hid_desc;
     struct usb_endpoint_descriptor      hid_ep[2];
@@ -89,16 +88,6 @@ static const struct usb_config {
         .iConfiguration         = NO_DESCRIPTOR,
         .bmAttributes           = USB_CFG_ATTR_RESERVED | USB_CFG_ATTR_SELFPOWERED,
         .bMaxPower              = USB_CFG_POWER_MA(500),
-    },
-    .hid_iad = {
-        .bLength = sizeof(struct usb_iad_descriptor),
-        .bDescriptorType        = USB_DTYPE_INTERFASEASSOC,
-        .bFirstInterface        = USB_HID_IF,
-        .bInterfaceCount        = 1,
-        .bFunctionClass         = USB_CLASS_HID,
-        .bFunctionSubClass      = USB_HID_SUBCLASS_NONBOOT,
-        .bFunctionProtocol      = USB_HID_PROTO_NONBOOT,
-        .iFunction              = NO_DESCRIPTOR,
     },
     .hid = {
         .bLength                = sizeof(struct usb_interface_descriptor),
