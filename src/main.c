@@ -14,9 +14,10 @@
 
 void SystemInit(void) {
     // Set up HSE
-    // HSE is a Murata CERALOCK tight-tolerance ceramic resonator: cheap,
-    // 3.2 x 1.3 mm, built-in load caps (fewer BOM lines), and tight enough
-    // for the USB 2.0 full-speed clock tolerance (+/-0.25%).
+    // HSE is a 12 MHz crystal. Use a crystal here, not a ceramic resonator:
+    // USB full-speed needs the 48 MHz clock within +/-0.25% including drift,
+    // and a resonator that misses it fails as CRC errors on every packet
+    // rather than as a clean fault.
     RCC->CR |= RCC_CR_HSEON; // HSE = 12MHz.
     while (!(RCC->CR & RCC_CR_HSERDY));
 
