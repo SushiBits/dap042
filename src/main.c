@@ -14,10 +14,12 @@
 
 void SystemInit(void) {
     // Set up HSE
-    // HSE is a 12 MHz crystal. Use a crystal here, not a ceramic resonator:
-    // USB full-speed needs the 48 MHz clock within +/-0.25% including drift,
-    // and a resonator that misses it fails as CRC errors on every packet
-    // rather than as a clean fault.
+    // HSE is a 12 MHz crystal. On this branch it clocks SYSCLK only - USB runs
+    // from HSI48, trimmed by the CRS against the host's SOF frames - so its
+    // absolute accuracy no longer has to meet the +/-0.25% USB budget. The
+    // board still uses a crystal rather than a resonator: the difference in
+    // cost is small, and it keeps the PLL-clocked USB variant a one-line
+    // change to compare against.
     RCC->CR |= RCC_CR_HSEON; // HSE = 12MHz.
     while (!(RCC->CR & RCC_CR_HSERDY));
 
@@ -39,8 +41,25 @@ void SystemInit(void) {
     // Turn on important peripherals
     RCC->AHBENR |= RCC_AHBENR_GPIOAEN | RCC_AHBENR_GPIOBEN;
     RCC->APB2ENR |= RCC_APB2ENR_SYSCFGCOMPEN;
-    MODIFY_REG(RCC->CFGR3, RCC_CFGR3_USBSW_Msk, RCC_CFGR3_USBSW_PLLCLK); // USB clock = PLLCLK
     SYSCFG->CFGR1 |= SYSCFG_CFGR1_PA11_PA12_RMP; // USB_DM/USB_DP on PA11/PA12.
+
+    // Run USB from HSI48 instead of the PLL, and discipline HSI48 to the host
+    // rather than to our own crystal: the CRS compares HSI48 against the 1 kHz
+    // SOF frames and trims it to them, so the PHY tracks the host's clock. The
+    // PLL is left free to clock SYSCLK and everything else, and the two
+    // domains no longer share a source.
+    RCC->CR2 |= RCC_CR2_HSI48ON;
+    while (!(RCC->CR2 & RCC_CR2_HSI48RDY));
+    RCC->APB1ENR |= RCC_APB1ENR_CRSEN; // CRS clock, before the first write to it
+    MODIFY_REG(RCC->CFGR3, RCC_CFGR3_USBSW_Msk, RCC_CFGR3_USBSW_HSI48); // USB clock = HSI48
+
+    // CRS_CFGR resets to SYNCSRC = USB SOF, RELOAD = 47999 (one 1 kHz SOF
+    // period measured at 48 MHz) and FELIM = 0x22, which is exactly the window
+    // this needs, so only the counter has to be started. Leaving it running
+    // while the device waits to enumerate costs nothing: until the first SOF
+    // arrives the counter runs untrimmed and TRIM holds its factory value, and
+    // while the bus is suspended it holds the last correction.
+    CRS->CR = CRS_CR_AUTOTRIMEN | CRS_CR_CEN;
 }
 
 int main(void) {
