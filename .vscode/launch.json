@@ -11,7 +11,7 @@
             "interface": "swd",
             "svdFile": "${workspaceFolder}/contrib/platform/share/STM32F042x.svd",
             "ipAddress": "jlink.maxchan.xyz",
-            "runToEntryPoint": "main",
+            //"runToEntryPoint": "main",
             "preLaunchTask": "Build",
             "serverpath": "C:\\Program Files\\SEGGER\\Jlink\\JLinkGDBServerCL.exe",
             "serverArgs": ["-reset_type", "2"],
