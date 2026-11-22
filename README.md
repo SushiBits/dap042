@@ -155,13 +155,18 @@ initialisation, and the timing constants below.
 
 ## Timing calibration
 
-Two constants decide every clock the probe generates. Both are currently
-**derived, not measured**, so treat them as a starting point:
+Two constants decide every clock the probe generates. Both were **measured on
+hardware** with a logic analyser on TCK, at the default `-Og` build:
 
 ```c
-#define DAP_CONFIG_DELAY_CONSTANT  5800       // 1 kHz test output on SWCLK
-#define DAP_CONFIG_FAST_CLOCK      3100000    // above this, no delays are added
+#define DAP_CONFIG_DELAY_CONSTANT  6000       // 1 kHz test output on SWCLK
+#define DAP_CONFIG_FAST_CLOCK      1800000    // above this, no delays are added
 ```
+
+They are board- and compiler-specific: any change to the optimisation level,
+the delay loop, or `SystemCoreClock` invalidates them, and the symptom is a
+probe that reports a clock it does not produce. Re-measure after such a change
+rather than scaling the old numbers.
 
 free-dap computes the per-bit delay as
 `(DAP_CONFIG_DELAY_CONSTANT * 1000) / frequency`, so `DELAY_CONSTANT` is defined

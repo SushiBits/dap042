@@ -30,12 +30,17 @@
 // Attribute to use for performance-critical functions
 #define DAP_CONFIG_PERFORMANCE_ATTR
 
-// A value at which dap_clock_test() produces 1 kHz output on the SWCLK pin
-#define DAP_CONFIG_DELAY_CONSTANT      5800
+// A value at which dap_clock_test() produces 1 kHz output on the SWCLK pin.
+// Measured on hardware with a logic analyser at -Og; not derived. Changes to
+// the delay loop, the optimisation level or SystemCoreClock invalidate it.
+#define DAP_CONFIG_DELAY_CONSTANT      6000
 
 // A threshold for switching to fast clock (no added delays)
-// This is the frequency produced by dap_clock_test(1) on the SWCLK pin
-#define DAP_CONFIG_FAST_CLOCK          3100000
+// This is the frequency produced by dap_clock_test(1) on the SWCLK pin, also
+// measured on hardware. Set it to the measured ceiling, never above it: the
+// no-delay path then reports a clock the loop cannot sustain, and the resulting
+// SWD ACK failures look like a target fault.
+#define DAP_CONFIG_FAST_CLOCK          1800000
 
 /*- Prototypes --------------------------------------------------------------*/
 
