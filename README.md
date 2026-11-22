@@ -25,6 +25,11 @@ Working:
 - SWD and JTAG, 1 kHz to 3 MHz
 - Flash programming and verification through OpenOCD
 
+`main` clocks USB from the PLL. This branch (`usb-hsi48-sof-trim`) runs USB
+from HSI48 with CRS trimming against the host's SOF frames instead, leaving the
+PLL to SYSCLK and everything else. It has not been run on hardware yet; see
+[USB clock and SOF trimming](#usb-clock-and-sof-trimming).
+
 Not implemented yet:
 
 - CDC-ACM virtual serial port. The function enumerates and answers the class
@@ -46,7 +51,7 @@ Not implemented yet:
 | | |
 |---|---|
 | MCU | STM32F042F4 (16 KiB flash) for production, STM32F042F6 (32 KiB) for development |
-| Clock | 12 MHz crystal, PLL x4 = 48 MHz SYSCLK, USB from PLL |
+| Clock | 12 MHz crystal, PLL x4 = 48 MHz SYSCLK; USB from HSI48, CRS-trimmed to the host's SOF frames |
 | USB VID:PID | `0x0002:0xDA42` (the `0x0002` vendor ID is legacy, not USB-IF assigned) |
 | USB class | composite: HID (CMSIS-DAP v1) + CDC-ACM |
 | Firmware version | `2.0.0` |
@@ -58,19 +63,54 @@ override.
 
 ### Use a crystal, not a ceramic resonator
 
-**The HSE must be a crystal.** USB full-speed requires the 48 MHz peripheral
-clock to stay within **±0.25 %**, and that budget covers the part's initial
-tolerance *and* its drift over temperature and ageing. A ceramic resonator does
-not have the margin: the cheap tight-tolerance parts are typically ±0.5 % over
-temperature before ageing is counted.
+The board uses a 12 MHz crystal for HSE. On `main`, that crystal *is* the USB
+clock, and USB full-speed requires the 48 MHz peripheral clock to stay within
+**±0.25 %** - a budget that covers the part's initial tolerance *and* its drift
+over temperature and ageing. A ceramic resonator does not have the margin: the
+cheap tight-tolerance parts are typically ±0.5 % over temperature before ageing
+is counted.
 
 A resonator that misses the budget does not fail cleanly. The device still
 enumerates, the host still sends frames, and every packet is rejected with a
 CRC error - which reads as a dead or half-broken probe rather than a clock
 problem, and costs hours to diagnose.
 
+This branch moves USB off the HSE path, so that argument no longer binds: see
+[USB clock and SOF trimming](#usb-clock-and-sof-trimming) below. Keep the
+crystal anyway - the cost difference is small, and it is what lets the
+PLL-clocked variant be one line away.
+
 Earlier revisions of this board used a Murata CERALOCK resonator; current
 builds use a 12 MHz crystal. Keep it that way.
+
+### USB clock and SOF trimming
+
+`main` clocks USB from the PLL, which means the crystal's absolute accuracy is
+also the USB clock's accuracy. This branch separates the two: `SystemInit`
+enables HSI48, points `RCC_CFGR3.USBSW` at it, and starts the CRS with
+`AUTOTRIMEN | CEN` so the hardware trims HSI48 against the 1 kHz SOF frames the
+host is already sending. HSE and the PLL still clock SYSCLK and everything
+else.
+
+`CRS_CFGR` resets to `SYNCSRC = USB SOF`, `RELOAD = 47999` (one 1 kHz period
+measured at 48 MHz) and `FELIM = 0x22`, which is already the right measurement
+window, so the code only starts the counter rather than reprogramming it.
+
+What this buys and what it costs:
+
+- **The pre-enumeration window is out of spec, deliberately.** Until the first
+  SOF arrives, HSI48 runs on its factory trim, which is looser than the
+  ±0.25 % budget. Only then does the CRS pull it in. The device has to get
+  through the reset and address handshake on the untrimmed oscillator, and
+  whether a given host tolerates that is exactly what this branch is for.
+- **Trimming can stay on permanently.** While the bus is suspended no SOF
+  arrives, so the CRS simply holds its last correction; nothing has to stop or
+  restart it around enumeration, suspend or resume.
+- **The clock domains are independent.** The PLL can be reconfigured for the
+  CDC work, or SYSCLK changed, without disturbing a live USB link.
+- **Timing calibration is unaffected.** `SystemCoreClock` is still 48 MHz, so
+  SysTick, `delay_ms()` and the measured `DAP_CONFIG_DELAY_CONSTANT` /
+  `DAP_CONFIG_FAST_CLOCK` values carry over unchanged.
 
 ## Building
 
